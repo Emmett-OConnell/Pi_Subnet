@@ -1,40 +1,38 @@
 #!/bin/bash
-# cytex_subnet.sh — combined prereq setup and subnet installer for Cytex Lab
-
+# cytex_subnet.sh — combined prereq-setup & subnet installer for Cytex Lab
 set -e
 
-# 1️⃣ Root check
+# 1️⃣ Ensure root
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Error: please run this with sudo or as root." >&2
+  echo "Error: run this with sudo or as root." >&2
   exit 1
 fi
 
 echo "[+] Updating package lists…"
 apt update -qq
 
-# 2️⃣ Prerequisite packages
+# 2️⃣ Common prerequisites
 pkgs=(dnsmasq hostapd netfilter-persistent iptables-persistent)
 
 # 3️⃣ Detect network manager or dhcpcd
 if command -v nmcli &>/dev/null; then
   echo "[+] Detected NetworkManager"
   manager="nm"
-  # ensure network-manager installed
   pkgs+=(network-manager)
 elif dpkg -l dhcpcd5 &>/dev/null; then
-  echo "[+] Detected dhcpcd"
+  echo "[+] Detected dhcpcd5"
   manager="dhcpcd"
 else
-  echo "[+] No dhcpcd detected, installing dhcpcd5"
+  echo "[+] Installing dhcpcd5 (Lite OS)"
   pkgs+=(dhcpcd5)
   manager="dhcpcd"
 fi
 
-# 4️⃣ Install any missing pkgs
-echo "[+] Installing prerequisites: ${pkgs[*]}"
+# 4️⃣ Install any missing packages
+echo "[+] Installing: ${pkgs[*]}"
 DEBIAN_FRONTEND=noninteractive apt install -y -qq "${pkgs[@]}"
 
-# 5️⃣ Enable and start networking service
+# 5️⃣ Enable networking service
 if [ "$manager" = "nm" ]; then
   systemctl enable --now NetworkManager
 else
@@ -44,11 +42,13 @@ fi
 # 6️⃣ Enable dnsmasq & hostapd
 systemctl enable --now dnsmasq hostapd
 
-# 7️⃣ Enable IP forwarding now & persistently
+# 7️⃣ Enable IPv4 forwarding
+echo "[+] Enabling IP forwarding…"
 sysctl -w net.ipv4.ip_forward=1
-grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf ||   echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+grep -qxF 'net.ipv4.ip_forward=1' /etc/sysctl.conf || \
+  echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 
-# 8️⃣ Unlock resolv.conf for later lock
+# 8️⃣ Unlock resolv.conf so we can lock it later
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
 # 9️⃣ Prompt for WPA2 passphrase
@@ -60,12 +60,20 @@ if [ ${#WPA_PSK} -lt 8 ]; then
 fi
 SSID="00_Cytex_Test_Net"
 
-# 🔟 Configure static IP
+# 🔟 Configure static IP & DNS
 if [ "$manager" = "nm" ]; then
   echo "[+] Configuring static IP via NetworkManager…"
-  nmcli connection delete CytexAP &>/dev/null || true
+  nmcli connection delete CytexAP 2>/dev/null || true
   nmcli connection add type wifi ifname wlan0 con-name CytexAP autoconnect yes ssid "$SSID"
-  nmcli connection modify CytexAP 802-11-wireless.mode ap     802-11-wireless.band bg 802-11-wireless.channel 6     802-11-wireless-security.key-mgmt wpa-psk     802-11-wireless-security.psk "$WPA_PSK"     ipv4.addresses 192.168.4.1/24 ipv4.method manual     ipv4.dns "140.82.3.211 8.8.8.8"
+  nmcli connection modify CytexAP \
+    802-11-wireless.mode ap \
+    802-11-wireless.band bg \
+    802-11-wireless.channel 6 \
+    wifi-sec.key-mgmt wpa-psk \
+    wifi-sec.psk "$WPA_PSK" \
+    ipv4.addresses 192.168.4.1/24 \
+    ipv4.method manual \
+    ipv4.dns "140.82.3.211 8.8.8.8"
   nmcli connection up CytexAP
 else
   echo "[+] Configuring static IP via dhcpcd…"
@@ -123,5 +131,5 @@ chattr -i /etc/resolv.conf 2>/dev/null || true
 echo "nameserver 140.82.3.211" > /etc/resolv.conf
 chattr +i /etc/resolv.conf
 
-echo "[✔] Setup complete – rebooting…"
+echo "[✔] Setup complete — rebooting…"
 reboot
