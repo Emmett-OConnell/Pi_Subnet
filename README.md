@@ -1,6 +1,4 @@
-# Cytex Lab Subnet Setup Guide
-
-_A fool-proof, step-by-step guide to turn a fresh Raspberry Pi OS into a Wi-Fi subnet (192.168.4.0/24) that routes all DNS through Cytex._
+# Cytex Raspberry PI Subnet Setup Guide
 
 ---
 
@@ -92,17 +90,24 @@ After the Pi reboots:
    ip addr show wlan0        # Linux
    ```
 
-4. **Ping the Pi gateway**:
+4. **Connect your subnet to Cytex** 
+
+   Type the following comand to get the IP of your pi then add it to cytex using our [**DNS Setup Guide**](https://broadstonetechnologies-my.sharepoint.com/:w:/g/personal/emmett_broadstonetechnologies_onmicrosoft_com/EcgwjBtaV-NPpVJiWQd5mfIB1xOIDcRQlBOHY-g_DuJ3qQ?rtime=76f2Qk-O3Ug)
+   ```
+   ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1
+   ```
+
+5. **Ping the Pi gateway**:
    ```bash
    ping -c 3 192.168.4.1
    ```
 
-5. **Test Internet**:
+6. **Test Internet**:
    ```bash
    ping -c 3 8.8.8.8
    ```
 
-6. **Test DNS via Cytex**:
+7. **Test DNS via Cytex**:
    ```bash
    nslookup example.com 140.82.3.211
    ```
@@ -118,4 +123,4 @@ If all tests pass, you now have a working subnet:
 - **DNS**: `140.82.3.211` (Cytex)  
 - **NAT**: traffic forwarded to your main router via `eth0`
 
-If following this guide on a fresh install doesn’t give you a **192.168.4.0/24** subnet, let me know—I’ll be very sad too! 😢
+For support please contact **emmett@cytex.io**
