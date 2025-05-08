@@ -1,38 +1,43 @@
 #!/bin/bash
-# cytex_subnet.sh — prepare & provision Pi as a Cytex-monitored AP
+# cytex_subnet.sh — all-in-one “out-of-the-box” Pi AP installer
 
 set -e
-[ "$(id -u)" -eq 0 ] || { echo "Run this with sudo"; exit 1; }
+[ "$(id -u)" -eq 0 ] || { echo "ERROR: run this with sudo or as root."; exit 1; }
 
-# 1) Update & install core packages
+echo "[+] Updating package lists…"
 apt update -qq
+
+echo "[+] Installing prerequisites…"
 apt install -y dnsmasq hostapd netfilter-persistent iptables-persistent dhcpcd5
 
-# 2) Stop/disable any wpa_supplicant or NetworkManager on wlan0
+echo "[+] Stopping competing Wi-Fi services…"
 systemctl stop wpa_supplicant.service 2>/dev/null || true
 systemctl disable wpa_supplicant.service 2>/dev/null || true
 if command -v nmcli &>/dev/null; then
-  nmcli dev set wlan0 managed no 2>/dev/null || true
+  nmcli dev set wlan0 managed no || true
 fi
 
-# 3) Enable dhcpcd, dnsmasq & hostapd
-systemctl enable --now dhcpcd dnsmasq hostapd
+echo "[+] Enabling core services…"
+systemctl enable --now dhcpcd dnsmasq
 
-# 4) Turn on IPv4 forwarding
+echo "[+] Enabling IPv4 forwarding…"
 sysctl -w net.ipv4.ip_forward=1
 grep -qxF 'net.ipv4.ip_forward=1' /etc/sysctl.conf \
   || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 
-# 5) Unlock resolv.conf so we can override it later
+echo "[+] Unlocking /etc/resolv.conf…"
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
-# 6) Prompt for the WPA2 passphrase
+# Prompt for WPA2 passphrase
 read -s -p "Enter WPA2 password for 00_Cytex_Test_Net (min 8 chars): " WPA_PSK
 echo
-[ ${#WPA_PSK} -ge 8 ] || { echo "Passphrase too short"; exit 1; }
+if [ ${#WPA_PSK} -lt 8 ]; then
+  echo "ERROR: password must be at least 8 characters." >&2
+  exit 1
+fi
 SSID="00_Cytex_Test_Net"
 
-# 7) Configure static IP on wlan0 via dhcpcd
+echo "[+] Configuring static IP on wlan0…"
 cat <<EOF >> /etc/dhcpcd.conf
 interface wlan0
   static ip_address=192.168.4.1/24
@@ -41,7 +46,7 @@ interface wlan0
 EOF
 systemctl restart dhcpcd
 
-# 8) Configure DHCP in dnsmasq
+echo "[+] Configuring DHCP (dnsmasq)…"
 cat <<EOF > /etc/dnsmasq.conf
 interface=wlan0
 dhcp-range=192.168.4.10,192.168.4.100,255.255.255.0,24h
@@ -51,7 +56,7 @@ server=140.82.3.211
 EOF
 systemctl restart dnsmasq
 
-# 9) Write hostapd.conf
+echo "[+] Writing hostapd configuration…"
 cat <<EOF > /etc/hostapd/hostapd.conf
 interface=wlan0
 driver=nl80211
@@ -70,23 +75,24 @@ rsn_pairwise=CCMP
 EOF
 sed -i 's|^#DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
 
-# 10) Clean up & bring up wlan0 exclusively for hostapd
+echo "[+] Bouncing wlan0…"
 rfkill unblock wlan
 ip link set wlan0 down || true
 ip link set wlan0 up
+
+echo "[+] Starting hostapd…"
 systemctl unmask hostapd
 systemctl enable --now hostapd
 
-# 11) NAT rules
+echo "[+] Applying NAT rules…"
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
 iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
 netfilter-persistent save
-netfilter-persistent reload
 
-# 12) Lock DNS to Cytex
+echo "[+] Locking DNS to Cytex…"
 echo "nameserver 140.82.3.211" > /etc/resolv.conf
 chattr +i /etc/resolv.conf
 
-echo "[✔] Setup complete — rebooting…"
+echo "[✔] Setup complete — rebooting now."
 reboot
