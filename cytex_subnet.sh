@@ -1,5 +1,5 @@
 #!/bin/bash
-# cytex_subnet.sh — combined prereq-setup & subnet installer for Cytex Lab
+# cytex_subnet.sh — combined prereq setup + subnet installer for Cytex Lab
 set -e
 
 # 1️⃣ Ensure root
@@ -28,7 +28,7 @@ else
   manager="dhcpcd"
 fi
 
-# 4️⃣ Install any missing packages
+# 4️⃣ Install missing packages
 echo "[+] Installing: ${pkgs[*]}"
 DEBIAN_FRONTEND=noninteractive apt install -y -qq "${pkgs[@]}"
 
@@ -42,13 +42,13 @@ fi
 # 6️⃣ Enable dnsmasq & hostapd
 systemctl enable --now dnsmasq hostapd
 
-# 7️⃣ Enable IPv4 forwarding
+# 7️⃣ Enable IPv4 forwarding persistently
 echo "[+] Enabling IP forwarding…"
 sysctl -w net.ipv4.ip_forward=1
 grep -qxF 'net.ipv4.ip_forward=1' /etc/sysctl.conf || \
   echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 
-# 8️⃣ Unlock resolv.conf so we can lock it later
+# 8️⃣ Unlock resolv.conf (so we can lock it later)
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
 # 9️⃣ Prompt for WPA2 passphrase
@@ -97,15 +97,17 @@ server=140.82.3.211
 EOF
 systemctl restart dnsmasq
 
-# 1️⃣2️⃣ Configure hostapd
+# 1️⃣2️⃣ Prepare hostapd
 echo "[+] Configuring hostapd…"
 cat <<EOF > /etc/hostapd/hostapd.conf
 interface=wlan0
 driver=nl80211
 ssid=$SSID
+country_code=US
+ieee80211n=1
 hw_mode=g
 channel=6
-wmm_enabled=0
+wmm_enabled=1
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
@@ -113,6 +115,16 @@ wpa_passphrase=$WPA_PSK
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 EOF
+
+# 🔧 Cleanup any pre-existing Wi-Fi control
+echo "[+] Cleaning up old Wi-Fi sessions…"
+systemctl stop wpa_supplicant.service 2>/dev/null || true
+systemctl disable wpa_supplicant.service 2>/dev/null || true
+rfkill unblock wlan
+ip link set wlan0 down
+ip link set wlan0 up
+
+# ⏩ Start hostapd
 sed -i 's|^#DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|' /etc/default/hostapd
 systemctl unmask hostapd
 systemctl enable --now hostapd
