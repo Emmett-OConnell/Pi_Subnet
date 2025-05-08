@@ -65,7 +65,7 @@ if [ "$manager" = "nm" ]; then
   echo "[+] Configuring static IP via NetworkManager…"
   nmcli connection delete CytexAP &>/dev/null || true
   nmcli connection add type wifi ifname wlan0 con-name CytexAP autoconnect yes ssid "$SSID"
-  nmcli connection modify CytexAP 802-11-wireless.mode ap     802-11-wireless.band bg 802-11-wireless.channel 6     802-11-wireless.security key-mgmt wpa-psk     802-11-wireless-security.psk "$WPA_PSK"     ipv4.addresses 192.168.4.1/24 ipv4.method manual     ipv4.dns "140.82.3.211 8.8.8.8"
+  nmcli connection modify CytexAP 802-11-wireless.mode ap     802-11-wireless.band bg 802-11-wireless.channel 6     802-11-wireless-security.key-mgmt wpa-psk     802-11-wireless-security.psk "$WPA_PSK"     ipv4.addresses 192.168.4.1/24 ipv4.method manual     ipv4.dns "140.82.3.211 8.8.8.8"
   nmcli connection up CytexAP
 else
   echo "[+] Configuring static IP via dhcpcd…"
