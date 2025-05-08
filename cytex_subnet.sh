@@ -48,7 +48,7 @@ grep -qxF 'net.ipv4.ip_forward=1' /etc/sysctl.conf \
 echo "[+] Unlocking /etc/resolv.conf…"
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
-read -s -p "Enter WPA2 password for '00_Cytex_Test_Net' (min 8 chars): " WPA_PSK
+read -p "Enter WPA2 password for '00_Cytex_Test_Net' (min 8 chars): " WPA_PSK
 echo
 if [ "${#WPA_PSK}" -lt 8 ]; then
   echo "ERROR: passphrase must be ≥8 characters." >&2
