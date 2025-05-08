@@ -76,8 +76,7 @@ After the Pi reboots:
 
 1. **SSH back in** (via Ethernet side):
    ```bash
-   ssh pi@<your-LAN-IP>  
-   # or: ssh pi@raspberrypi.local
+      ssh pi@raspberrypi.local
    ```
 2. **On any Wi-Fi device**, join:
    - **Network**: `00_Cytex_Test_Net`  
