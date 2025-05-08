@@ -92,7 +92,7 @@ After the Pi reboots:
 
 4. **Connect your subnet to Cytex** 
 
-   Type the following comand to get the IP of your pi then add it to cytex using our [**DNS Setup Guide**](https://broadstonetechnologies-my.sharepoint.com/:w:/g/personal/emmett_broadstonetechnologies_onmicrosoft_com/EcgwjBtaV-NPpVJiWQd5mfIB1xOIDcRQlBOHY-g_DuJ3qQ?rtime=76f2Qk-O3Ug)
+   Type the following comand to get the IP of your pi then add it to cytex using our [**DNS Setup Guide**](https://broadstonetechnologies-my.sharepoint.com/:w:/g/personal/emmett_broadstonetechnologies_onmicrosoft_com/EcgwjBtaV-NPpVJiWQd5mfIB1xOIDcRQlBOHY-g_DuJ3qQ?rtime=76f2Qk-O3Ug) (The setup file will automaticaly have your subnet point to Cytex DNS)
    ```
    ip -4 addr show eth0 | awk '/inet /{print $2}' | cut -d/ -f1
    ```
